@@ -4,10 +4,17 @@ from typing import Dict, Type
 
 from .base import ChangePointModel
 from .lotka_volterra import LotkaVolterraPoissonModel
+from .lorenz import LorenzRhoModel, LorenzUniformCPModel
+from .seird import SEIRDBetaModel, SEIRDPdModel
 
 _MODEL_REGISTRY: Dict[str, Type[ChangePointModel]] = {
     "lotka_volterra": LotkaVolterraPoissonModel,
     "lv_poisson": LotkaVolterraPoissonModel,
+    "lorenz": LorenzRhoModel,
+    "lorenz_uniform": LorenzUniformCPModel,
+    "seird": SEIRDBetaModel,
+    "seird_beta": SEIRDBetaModel,
+    "seird_pd": SEIRDPdModel,
 }
 
 
@@ -18,4 +25,12 @@ def get_model(name: str) -> ChangePointModel:
     return _MODEL_REGISTRY[key]()
 
 
-__all__ = ["ChangePointModel", "get_model", "LotkaVolterraPoissonModel"]
+__all__ = [
+    "ChangePointModel",
+    "get_model",
+    "LotkaVolterraPoissonModel",
+    "LorenzRhoModel",
+    "LorenzUniformCPModel",
+    "SEIRDBetaModel",
+    "SEIRDPdModel",
+]

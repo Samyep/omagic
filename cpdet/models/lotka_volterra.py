@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, List
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -28,6 +28,11 @@ class LotkaVolterraPoissonModel(ChangePointModel):
     name: str = "lotka_volterra"
     param_dim_null: int = 4
     param_dim_alt: int = 5
+    obs_columns: List[str] = None
+
+    def __post_init__(self):
+        if self.obs_columns is None:
+            self.obs_columns = ["x_noisy", "y_noisy"]
 
     def simulate(self, seed: int = 0) -> Tuple[pd.DataFrame, np.ndarray, np.ndarray]:
         rng = np.random.default_rng(seed)
@@ -138,3 +143,28 @@ class LotkaVolterraPoissonModel(ChangePointModel):
             float(theta_null[3]),
         )
         return np.array([alpha0, beta0, delta0, gamma0, gamma0], dtype=np.float64)
+
+    def prepare_window(self, window_df: pd.DataFrame, eps: float = 1e-8) -> Tuple[np.ndarray, np.ndarray]:
+        ts_obs = window_df["t"].to_numpy(dtype=np.float64).reshape(-1, 1)
+        vals = window_df[self.obs_columns].to_numpy(dtype=np.float64)
+        X_obs = np.log(np.maximum(vals, eps))
+        return ts_obs, X_obs
+
+    def infer_change_value(self, theta_null: np.ndarray | None, best_alt: dict, T_stat: float, threshold: float) -> float:
+        null_gamma = np.nan
+        try:
+            null_gamma = float(theta_null[3]) if theta_null is not None else np.nan
+        except Exception:
+            pass
+
+        if (
+            best_alt.get("theta_hat") is not None
+            and best_alt.get("k_time") is not None
+            and np.isfinite(T_stat)
+            and T_stat > threshold
+        ):
+            try:
+                return float(best_alt["theta_hat"][4])
+            except Exception:
+                return null_gamma
+        return null_gamma

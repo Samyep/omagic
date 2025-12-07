@@ -144,9 +144,7 @@ def child_main(child_args):
                 continue
 
         win_df = batch_df.iloc[window_start : i + 1]
-        ts_obs = win_df["t"].to_numpy(dtype=np.float64).reshape(-1, 1)
-        vals = win_df[["x_noisy", "y_noisy"]].to_numpy(dtype=np.float64)
-        X_obs = np.log(np.maximum(vals, EPS))
+        ts_obs, X_obs = model.prepare_window(win_df, eps=EPS)
 
         current_t = float(batch_df["t"].iloc[i])
 
@@ -282,25 +280,7 @@ def child_main(child_args):
 
         T_stat = -2 * (null_small.get("loglik", -np.inf) - best_alt.get("loglik", -np.inf))
 
-        inferred_gamma = np.nan
-        null_gamma = np.nan
-        try:
-            null_gamma = float(LAST_NULL_INIT["theta"][3])
-        except Exception:
-            pass
-
-        if (
-            best_alt.get("theta_hat") is not None
-            and best_alt.get("k_time") is not None
-            and np.isfinite(T_stat)
-            and T_stat > DETECTION_THRESHOLD
-        ):
-            try:
-                inferred_gamma = float(best_alt["theta_hat"][4])
-            except Exception:
-                inferred_gamma = null_gamma
-        else:
-            inferred_gamma = null_gamma
+        inferred_change = model.infer_change_value(LAST_NULL_INIT.get("theta"), best_alt, T_stat, DETECTION_THRESHOLD)
 
         row_out = {
             "t": float(current_t),
@@ -313,24 +293,25 @@ def child_main(child_args):
             "slice_start": child_args.start,
             "slice_stop": child_args.stop,
             "prefix": child_args.prefix,
-            "null_alpha": float(LAST_NULL_INIT["theta"][0]) if LAST_NULL_INIT["theta"] is not None else np.nan,
-            "null_beta": float(LAST_NULL_INIT["theta"][1]) if LAST_NULL_INIT["theta"] is not None else np.nan,
-            "null_delta": float(LAST_NULL_INIT["theta"][2]) if LAST_NULL_INIT["theta"] is not None else np.nan,
-            "null_gamma": null_gamma,
-            "inferred_gamma": inferred_gamma,
+            "model": model.name,
+            "inferred_change": inferred_change,
             "sec_per_window": dt_s,
             "cp_idx_local": best_alt.get("cp_idx"),
             "win_start_local": window_start,
             "win_end_local": i,
         }
 
+        if LAST_NULL_INIT.get("theta") is not None:
+            try:
+                for idx, val in enumerate(np.asarray(LAST_NULL_INIT["theta"]).flatten()):
+                    row_out[f"null_theta_{idx}"] = float(val)
+            except Exception:
+                pass
+
         if best_alt.get("theta_hat") is not None:
             try:
-                row_out["alt_alpha"] = float(best_alt["theta_hat"][0])
-                row_out["alt_beta"] = float(best_alt["theta_hat"][1])
-                row_out["alt_delta"] = float(best_alt["theta_hat"][2])
-                row_out["alt_gamma_L"] = float(best_alt["theta_hat"][3])
-                row_out["alt_gamma_R"] = float(best_alt["theta_hat"][4])
+                for idx, val in enumerate(np.asarray(best_alt["theta_hat"]).flatten()):
+                    row_out[f"alt_theta_{idx}"] = float(val)
             except Exception:
                 pass
 
