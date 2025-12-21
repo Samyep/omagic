@@ -18,7 +18,7 @@ class LotkaVolterraPoissonModel(ChangePointModel):
     delta: float = 1.0
     gamma_low: float = 0.6
     gamma_high: float = 1.0
-    lambda_rate: float = 0.08  # per year
+    lambda_rate: float = 0.08  # retained for compatibility; unused with fixed CPs
     obs_per_year: int = 12
     n_obs: int = 1000
     min_no_cp_obs: int = 60
@@ -46,16 +46,12 @@ class LotkaVolterraPoissonModel(ChangePointModel):
         assert len(t_obs) == self.n_obs
         t_max = t_obs[-1]
 
-        min_cp_time = t_obs[self.min_no_cp_obs]
-
-        cp_times = []
-        t_cp = min_cp_time
-        while True:
-            t_cp += rng.exponential(1.0 / self.lambda_rate)
-            if t_cp >= t_max:
-                break
-            cp_times.append(t_cp)
-        cp_times = np.array(cp_times, dtype=float)
+        # Fixed five change points, each uniformly placed within pre-set intervals.
+        # Intervals are expressed in the same time units as t_obs (years in this setup).
+        cp_intervals = [(25.0, 30.0), (35.0, 40.0), (45.0, 50.0), (55.0, 60.0), (70.0, 75.0)]
+        cp_times = np.array([rng.uniform(lo, hi) for (lo, hi) in cp_intervals], dtype=float)
+        cp_times = np.sort(cp_times)
+        cp_times = cp_times[cp_times < t_max]
 
         def gamma_time(tt):
             tt_arr = np.asarray(tt, dtype=float)

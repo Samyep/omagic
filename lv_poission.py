@@ -24,6 +24,8 @@ def parse_args(argv):
     ap.add_argument("--chunk", type=int, default=110, help="points per child (span).")
     ap.add_argument("--stride", type=int, default=50, help="child start step.")
     ap.add_argument("--model", type=str, default="lotka_volterra", help="Model to use (e.g., lotka_volterra, lorenz, seird).")
+    ap.add_argument("--child_impl", type=str, choices=["magi", "rk_glr"], default="magi", help="Child implementation to launch.")
+    ap.add_argument("--scan", type=int, default=10, help="(rk_glr) trailing points per window to scan for tau.")
     return ap.parse_args(argv)
 
 
@@ -35,7 +37,7 @@ if __name__ == "__main__":
     else:
         parent_main(args)
         try:
-            metrics = eval_one_run(args.prefix, threshold=args.chi2, tol_idx=5)
+            metrics = eval_one_run(args.prefix, threshold=args.chi2, tol_idx=10)
             print("\n[eval] Metrics for this run:")
             for k, v in metrics.items():
                 print(f"  {k}: {v}")

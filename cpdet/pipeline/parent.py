@@ -57,7 +57,25 @@ def parent_main(args):
         shutil.rmtree(tmpdir, ignore_errors=True)
         sys.exit(2)
 
-    script_path = os.path.abspath(sys.argv[0])
+    # Select which child implementation to spawn; always use packaged pipeline scripts
+    if getattr(args, "child_impl", "magi") == "rk_glr":
+        try:
+            import cpdet.pipeline.child_rk_glr as mod
+
+            script_path = os.path.abspath(mod.__file__)
+        except Exception as e:
+            print(f"[parent] ERROR: could not locate child_rk_glr: {e}", flush=True)
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            sys.exit(2)
+    else:
+        try:
+            import cpdet.pipeline.child as mod
+
+            script_path = os.path.abspath(mod.__file__)
+        except Exception as e:
+            print(f"[parent] ERROR: could not locate child.py: {e}", flush=True)
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            sys.exit(2)
 
     S = start_idx
     while S < stop_idx:
@@ -102,6 +120,10 @@ def parent_main(args):
             "--model",
             args.model,
         ]
+
+        # Only RK GLR child understands --scan; harmless to add when selected
+        if getattr(args, "child_impl", "magi") == "rk_glr":
+            cmd.extend(["--scan", str(getattr(args, "scan", 10))])
         print(f"[parent] spawn child for [{S}:{E})", flush=True)
         ret = subprocess.run(cmd)
         if ret.returncode != 0:
